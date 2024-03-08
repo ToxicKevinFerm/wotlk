@@ -27,7 +27,7 @@ func NewWowheadItemTooltipManager(filePath string) *WowheadTooltipManager {
 	return &WowheadTooltipManager{
 		TooltipManager{
 			FilePath:   filePath,
-			UrlPattern: "https://nether.wowhead.com/wotlk/tooltip/item/%s?lvl=80",
+			UrlPattern: "https://nether.wowhead.com/cata/tooltip/item/%s?lvl=80",
 		},
 	}
 }
@@ -36,7 +36,7 @@ func NewWowheadSpellTooltipManager(filePath string) *WowheadTooltipManager {
 	return &WowheadTooltipManager{
 		TooltipManager{
 			FilePath:   filePath,
-			UrlPattern: "https://nether.wowhead.com/wotlk/tooltip/spell/%s",
+			UrlPattern: "https://nether.wowhead.com/cata/tooltip/spell/%s",
 		},
 	}
 }
