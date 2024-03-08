@@ -25,7 +25,7 @@
 }
 
 // We want to apply only to 1440p monitors, NOT 1080p Ultrawide
-@media (min-width: map.get($grid-breakpoints, 1440p)) and (max-aspect-ratio: 16/9) {
+@media (min-width: map-get($grid-breakpoints, 1440p)) and (max-aspect-ratio: 16/9) {
   :root {
     --bs-body-font-size: 24px;
   }
@@ -101,10 +101,32 @@ kbd {
   display: none !important;
 }
 
+.icon-sm {
+	display: inline-block;
+	min-width: $icon-size-sm;
+	width: $icon-size-sm;
+	height: $icon-size-sm;
+	background-size: cover;
+}
+
+.icon-md {
+	display: inline-block;
+	min-width: $icon-size-md;
+	width: $icon-size-md;
+	height: $icon-size-md;
+	background-size: cover;
+}
+
 @each $label, $value in $item-qualities {
-  .item-quality-#{$label} {
-    color: $value !important;
-  }
+	.item-quality-#{$label} {
+		color: $value !important;
+	}
+}
+
+@each $label, $value in $resource-colors {
+	.resource-#{$label} {
+		color: $value !important;
+	}
 }
 
 [contenteditable="true"]:active,

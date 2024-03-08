@@ -2,7 +2,6 @@ import { difficultyNames, professionNames, slotNames } from '../proto_utils/name
 import { BaseModal } from './base_modal';
 import { Component } from './component';
 import { FiltersMenu } from './filters_menu';
-import { Input, InputConfig } from './input';
 import {
 	makePhaseSelector,
 	makeShow1hWeaponsSelector,
@@ -21,18 +20,15 @@ import { formatDeltaTextElem } from '../utils';
 import { ActionId } from '../proto_utils/action_id';
 import { getEnchantDescription, getUniqueEnchantString } from '../proto_utils/enchants';
 import { EquippedItem } from '../proto_utils/equipped_item';
-import { ItemSwapGear } from '../proto_utils/gear'
 import { getEmptyGemSocketIconUrl, gemMatchesSocket } from '../proto_utils/gems';
 import { Stats } from '../proto_utils/stats';
 
 import {
 	Class,
-	Spec,
 	GemColor,
 	ItemQuality,
 	ItemSlot,
 	ItemSpec,
-	ItemSwap,
 	ItemType,
 } from '../proto/common';
 import {
@@ -43,6 +39,7 @@ import {
 } from '../proto/ui.js';
 import { IndividualSimUI } from '../individual_sim_ui.js';
 import { Tooltip } from 'bootstrap';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { element, fragment, ref } from 'tsx-vanilla';
 
 import { Clusterize } from './virtual_scroll/clusterize.js';
@@ -58,7 +55,7 @@ const createHeroicLabel = () => {
 
 const createGemContainer = (socketColor: GemColor ,gem : Gem|null) => {
 	const gemIconElem = ref<HTMLImageElement>();
-	
+
 	let gemContainer = (
 		<div className="gem-socket-container">
 			<img ref={gemIconElem} className={`gem-icon ${gem == null ? 'hide' : ''}`} />
@@ -125,7 +122,7 @@ export class ItemRenderer extends Component {
 	readonly socketsContainerElem: HTMLElement;
 
 	constructor(parent: HTMLElement, player: Player<any>) {
-		super(parent, 'item-renderer-root');
+		super(parent, 'item-picker-root');
 		this.player = player;
 
 		let iconElem = ref<HTMLAnchorElement>();
@@ -331,12 +328,10 @@ export class IconItemSwapPicker extends Component {
 			this._items = this.player.getItems(slot);
 			this._enchants = this.player.getEnchants(slot);
 			const gearData = {
-				equipItem: (eventID: EventID, equippedItem: EquippedItem | null) => {
-					let curIsg = player.getItemSwapGear();
-					curIsg = curIsg.withEquippedItem(slot, equippedItem, player.canDualWield2H())
-					player.setItemSwapGear(eventID, curIsg);
+				equipItem: (eventID: EventID, newItem: EquippedItem | null) => {
+					player.equipItemSwapitem(eventID, this.slot, newItem)
 				},
-				getEquippedItem: () => this.player.getItemSwapGear().getEquippedItem(this.slot),
+				getEquippedItem: () => player.getItemSwapItem(this.slot),
 				changeEvent: player.itemSwapChangeEmitter,
 			}
 
@@ -430,6 +425,19 @@ export class SelectorModal extends BaseModal {
 		this.contentElem = this.rootElem.querySelector('.selector-modal-tab-content') as HTMLElement;
 
 		this.setData();
+
+		this.body.appendChild(
+			<div className="d-flex align-items-center form-text mt-3">
+				<i className="fas fa-circle-exclamation fa-xl me-2"></i>
+				<span>
+					If gear is missing, check the selected phase and your gear filters.
+					<br />
+					If the problem persists, save any un-saved data, click the
+					<i className="fas fa-cog mx-1"></i>
+					to open your sim options, then click the "Restore Defaults".
+				</span>
+			</div>
+		)
 	}
 
 	// Could be 'Items' 'Enchants' or 'Gem1'-'Gem3'
@@ -817,9 +825,10 @@ export class ItemList<T> {
 					<button className="selector-modal-remove-button btn btn-danger">Unequip Item</button>
 				</div>
 				<div className="selector-modal-list-labels">
-					<label>Item</label>
-					<label className="ep-delta-label">
-						EP
+					<label className="item-label"><small>Item</small></label>
+					<label className="source-label"><small>Source</small></label>
+					<label className="ep-label">
+						<small>EP</small>
 						<i className="fa-solid fa-plus-minus fa-2xs"></i>
 						<button
 							ref={epButton}
@@ -827,6 +836,7 @@ export class ItemList<T> {
 							<i className="far fa-question-circle fa-lg"></i>
 						</button>
 					</label>
+					<label className="favorite-label"></label>
 				</div>
 				<ul className="selector-modal-list"></ul>
 			</div>
@@ -972,7 +982,9 @@ export class ItemList<T> {
 				epDeltaElem.textContent = '';
 				if (itemData.item) {
 					const listItemEP = this.computeEP(itemData.item);
-					formatDeltaTextElem(epDeltaElem, newEP, listItemEP, 0);
+					if (newEP != listItemEP) {
+						formatDeltaTextElem(epDeltaElem, newEP, listItemEP, 0);
+					}
 				}
 			}
 		});
@@ -1059,7 +1071,7 @@ export class ItemList<T> {
 	}
 
 	public hideOrShowEPValues() {
-		const labels = this.tabContent.getElementsByClassName("ep-delta-label")
+		const labels = this.tabContent.getElementsByClassName("ep-label")
 		const container = this.tabContent.getElementsByClassName("selector-modal-list")
 		const show = this.player.sim.getShowEPValues();
 		const display = show ? "" : "none"
@@ -1080,14 +1092,15 @@ export class ItemList<T> {
 		const itemData = item.data;
 		const itemEP = this.computeEP(itemData.item);
 
-		const equipedItem = this.equippedToItemFn(this.gearData.getEquippedItem());
-		const equipdItemId = equipedItem ? (this.label == 'Enchants' ? (equipedItem as unknown as Enchant).effectId : (equipedItem as unknown as Item | Gem).id) : 0;
+		const equippedItem = this.equippedToItemFn(this.gearData.getEquippedItem());
+		const equippedItemID = equippedItem ? (this.label == 'Enchants' ? (equippedItem as unknown as Enchant).effectId : (equippedItem as unknown as Item).id) : 0;
+		const equippedItemEP = equippedItem ? this.computeEP(equippedItem) : 0
 
 		const nameElem = ref<HTMLLabelElement>();
 		const anchorElem = ref<HTMLAnchorElement>();
 		const iconElem = ref<HTMLImageElement>();
 		const listItemElem = (
-			<li className={`selector-modal-list-item ${equipdItemId == itemData.id ? 'active' : ''}`} dataset={{idx: item.idx.toString()}}>
+			<li className={`selector-modal-list-item ${equippedItemID == itemData.id ? 'active' : ''}`} dataset={{idx: item.idx.toString()}}>
 				<div className='selector-modal-list-label-cell'>
 					<a className='selector-modal-list-item-link' ref={anchorElem} dataset={{whtticon:'false'}}>
 						<img className='selector-modal-list-item-icon' ref={iconElem}></img>
@@ -1108,8 +1121,22 @@ export class ItemList<T> {
 			)
 		}
 
-		let favoriteElem = ref<HTMLButtonElement>();
 
+		if (this.slot != ItemSlot.ItemSlotTrinket1 && this.slot != ItemSlot.ItemSlotTrinket2) {
+			listItemElem.appendChild(
+				<div className='selector-modal-list-item-ep'>
+					<span className='selector-modal-list-item-ep-value'>
+						{itemEP < 9.95 ? itemEP.toFixed(1).toString() : Math.round(itemEP).toString()}
+					</span>
+					<span
+						className='selector-modal-list-item-ep-delta'
+						ref={e => itemData.item && equippedItemEP != itemEP && formatDeltaTextElem(e, equippedItemEP, itemEP, 0)}
+					></span>
+				</div>
+			);
+		}
+
+		const favoriteElem = ref<HTMLButtonElement>();
 		listItemElem.appendChild(
 			<div>
 				<button className="selector-modal-list-item-favorite btn btn-link p-0"
@@ -1119,24 +1146,6 @@ export class ItemList<T> {
 				</button>
 			</div>
 		)
-
-
-		if (this.slot != ItemSlot.ItemSlotTrinket1 && this.slot != ItemSlot.ItemSlotTrinket2) {
-			listItemElem.appendChild(
-				<div className='selector-modal-list-item-ep'>
-					<span className='selector-modal-list-item-ep-value'>
-						{itemEP < 9.95 ? itemEP.toFixed(1).toString() : Math.round(itemEP).toString()}
-					</span>
-				</div>
-			);
-		}
-
-		listItemElem.appendChild(
-			<div className='selector-modal-list-item-ep'>
-				<span className='selector-modal-list-item-ep-delta'
-					ref={(e) => itemData.item && formatDeltaTextElem(e, equipedItem ? this.computeEP(equipedItem) : 0, itemEP, 0)}></span>
-			</div>
-		);
 
 		anchorElem.value!.addEventListener('click', (event: Event) => {
 			event.preventDefault();
@@ -1195,7 +1204,7 @@ export class ItemList<T> {
 		};
 
 		let isFavorite = this.isItemFavorited(itemData);
-		
+
 		if (isFavorite) {
 			favoriteElem.value!.children[0].classList.add('fas');
 			listItemElem.dataset.fav = 'true';
