@@ -27,7 +27,7 @@ func NewWowheadItemTooltipManager(filePath string) *WowheadTooltipManager {
 	return &WowheadTooltipManager{
 		TooltipManager{
 			FilePath:   filePath,
-			UrlPattern: "https://nether.wowhead.com/cata/tooltip/item/%s?lvl=80",
+			UrlPattern: "https://nether.wowhead.com/cata/tooltip/item/%s?lvl=85",
 		},
 	}
 }
@@ -41,7 +41,7 @@ func NewWowheadSpellTooltipManager(filePath string) *WowheadTooltipManager {
 	}
 }
 
-type Stats [35]float64
+type Stats [41]float64
 
 type ItemResponse interface {
 	GetName() string
@@ -160,6 +160,7 @@ var spiritRegex = regexp.MustCompile(`<!--stat6-->\+([0-9]+) Spirit`)
 var staminaRegex = regexp.MustCompile(`<!--stat7-->\+([0-9]+) Stamina`)
 var spellPowerRegex = regexp.MustCompile(`Increases spell power by ([0-9]+)\.`)
 var spellPowerRegex2 = regexp.MustCompile(`Increases spell power by <!--rtg45-->([0-9]+)\.`)
+var masteryRegex = regexp.MustCompile(`<!--rtg49-->([0-9]+)\.`)
 
 /*
 // Not sure these exist anymore?
@@ -245,6 +246,7 @@ func (item WowheadItemResponse) GetStats() Stats {
 		proto.Stat_StatFrostResistance:   float64(item.GetIntValue(frostResistanceRegex)),
 		proto.Stat_StatNatureResistance:  float64(item.GetIntValue(natureResistanceRegex)),
 		proto.Stat_StatShadowResistance:  float64(item.GetIntValue(shadowResistanceRegex)),
+		proto.Stat_StatMastery:           float64(item.GetIntValue(masteryRegex)),
 	}
 }
 
@@ -255,16 +257,16 @@ type classPattern struct {
 
 // Detects class-locked items, e.g. tier sets and pvp gear.
 var classPatternsWowhead = []classPattern{
-	{class: proto.Class_ClassWarrior, pattern: regexp.MustCompile(`<a href="/wotlk/class=1/warrior" class="c1">Warrior</a>`)},
-	{class: proto.Class_ClassPaladin, pattern: regexp.MustCompile(`<a href="/wotlk/class=2/paladin" class="c2">Paladin</a>`)},
-	{class: proto.Class_ClassHunter, pattern: regexp.MustCompile(`<a href="/wotlk/class=3/hunter" class="c3">Hunter</a>`)},
-	{class: proto.Class_ClassRogue, pattern: regexp.MustCompile(`<a href="/wotlk/class=4/rogue" class="c4">Rogue</a>`)},
-	{class: proto.Class_ClassPriest, pattern: regexp.MustCompile(`<a href="/wotlk/class=5/priest" class="c5">Priest</a>`)},
-	{class: proto.Class_ClassDeathknight, pattern: regexp.MustCompile(`<a href="/wotlk/class=6/death-knight" class="c6">Death Knight</a>`)},
-	{class: proto.Class_ClassShaman, pattern: regexp.MustCompile(`<a href="/wotlk/class=7/shaman" class="c7">Shaman</a>`)},
-	{class: proto.Class_ClassMage, pattern: regexp.MustCompile(`<a href="/wotlk/class=8/mage" class="c8">Mage</a>`)},
-	{class: proto.Class_ClassWarlock, pattern: regexp.MustCompile(`<a href="/wotlk/class=9/warlock" class="c9">Warlock</a>`)},
-	{class: proto.Class_ClassDruid, pattern: regexp.MustCompile(`<a href="/wotlk/class=11/druid" class="c11">Druid</a>`)},
+	{class: proto.Class_ClassWarrior, pattern: regexp.MustCompile(`<a href="/cata/class=1/warrior" class="c1">Warrior</a>`)},
+	{class: proto.Class_ClassPaladin, pattern: regexp.MustCompile(`<a href="/cata/class=2/paladin" class="c2">Paladin</a>`)},
+	{class: proto.Class_ClassHunter, pattern: regexp.MustCompile(`<a href="/cata/class=3/hunter" class="c3">Hunter</a>`)},
+	{class: proto.Class_ClassRogue, pattern: regexp.MustCompile(`<a href="/cata/class=4/rogue" class="c4">Rogue</a>`)},
+	{class: proto.Class_ClassPriest, pattern: regexp.MustCompile(`<a href="/cata/class=5/priest" class="c5">Priest</a>`)},
+	{class: proto.Class_ClassDeathknight, pattern: regexp.MustCompile(`<a href="/cata/class=6/death-knight" class="c6">Death Knight</a>`)},
+	{class: proto.Class_ClassShaman, pattern: regexp.MustCompile(`<a href="/cata/class=7/shaman" class="c7">Shaman</a>`)},
+	{class: proto.Class_ClassMage, pattern: regexp.MustCompile(`<a href="/cata/class=8/mage" class="c8">Mage</a>`)},
+	{class: proto.Class_ClassWarlock, pattern: regexp.MustCompile(`<a href="/cata/class=9/warlock" class="c9">Warlock</a>`)},
+	{class: proto.Class_ClassDruid, pattern: regexp.MustCompile(`<a href="/cata/class=11/druid" class="c11">Druid</a>`)},
 }
 
 func (item WowheadItemResponse) GetClassAllowlist() []proto.Class {
@@ -305,7 +307,7 @@ func (item WowheadItemResponse) IsRandomEnchant() bool {
 func (item WowheadItemResponse) IsEquippable() bool {
 	return item.GetItemType() != proto.ItemType_ItemTypeUnknown &&
 		!item.IsPattern() &&
-		!item.IsRandomEnchant()
+		!item.IsRandomEnchant() && item.GetItemLevel() <= 416
 }
 
 var itemLevelRegex = regexp.MustCompile(`Item Level <!--ilvl-->([0-9]+)<`)
@@ -323,20 +325,8 @@ func (item WowheadItemResponse) GetPhase() int {
 	}
 
 	ilvl := item.GetItemLevel()
-	if ilvl <= 164 { // TBC items
+	if ilvl <= 284 { // TBC items
 		return 0
-	}
-
-	if ilvl < 200 || ilvl == 200 || ilvl == 213 || ilvl == 226 {
-		return 1
-	} else if ilvl == 219 || ilvl == 226 || ilvl == 239 {
-		return 2
-	} else if ilvl == 232 || ilvl == 245 || ilvl == 258 {
-		return 3
-	} else if ilvl == 251 || ilvl == 258 || ilvl == 259 || ilvl == 264 || ilvl == 268 || ilvl == 270 || ilvl == 271 || ilvl == 272 {
-		return 4
-	} else if ilvl == 277 || ilvl == 284 {
-		return 5
 	}
 
 	// default to 1
@@ -558,6 +548,7 @@ var blockSocketBonusRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Bl
 var dodgeSocketBonusRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Dodge Rating`)}
 var parrySocketBonusRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Parry Rating`)}
 var resilienceSocketBonusRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Resilience Rating`)}
+var masterySocketBonusRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Mastery Rating`)}
 
 func (item WowheadItemResponse) GetSocketBonus() Stats {
 	match := socketBonusRegex.FindStringSubmatch(item.Tooltip)
@@ -591,6 +582,7 @@ func (item WowheadItemResponse) GetSocketBonus() Stats {
 		proto.Stat_StatDodge:             float64(GetBestRegexIntValue(bonusStr, dodgeSocketBonusRegexes, 1)),
 		proto.Stat_StatParry:             float64(GetBestRegexIntValue(bonusStr, parrySocketBonusRegexes, 1)),
 		proto.Stat_StatResilience:        float64(GetBestRegexIntValue(bonusStr, resilienceSocketBonusRegexes, 1)),
+		proto.Stat_StatMastery:           float64(GetBestRegexIntValue(bonusStr, masterySocketBonusRegexes, 1)),
 	}
 
 	return stats
@@ -697,6 +689,7 @@ var dodgeGemStatRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Dodge 
 var parryGemStatRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Parry Rating`)}
 var resilienceGemStatRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Resilience Rating`)}
 var allResistGemStatRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Resist All`)}
+var masteryGemStatRegexes = []*regexp.Regexp{regexp.MustCompile(`\+([0-9]+) Mastery Rating`)} //https://www.wowhead.com/cata/spell=101748/zen-elven-peridot
 
 func (item WowheadItemResponse) GetGemStats() Stats {
 	stats := Stats{
@@ -712,6 +705,7 @@ func (item WowheadItemResponse) GetGemStats() Stats {
 		proto.Stat_StatMeleeCrit:  float64(GetBestRegexIntValue(item.Tooltip, critGemStatRegexes, 1)),
 		proto.Stat_StatSpellHaste: float64(GetBestRegexIntValue(item.Tooltip, hasteGemStatRegexes, 1)),
 		proto.Stat_StatMeleeHaste: float64(GetBestRegexIntValue(item.Tooltip, hasteGemStatRegexes, 1)),
+		proto.Stat_StatMastery:    float64(GetBestRegexIntValue(item.Tooltip, masteryGemStatRegexes, 1)),
 
 		proto.Stat_StatSpellPower:        float64(GetBestRegexIntValue(item.Tooltip, spellPowerGemStatRegexes, 1)),
 		proto.Stat_StatAttackPower:       float64(GetBestRegexIntValue(item.Tooltip, attackPowerGemStatRegexes, 1)),
@@ -734,7 +728,7 @@ func (item WowheadItemResponse) GetGemStats() Stats {
 	return stats
 }
 
-var itemSetNameRegex = regexp.MustCompile(`<a href="/wotlk/item-set=-?([0-9]+)/(.*)" class="q">([^<]+)<`)
+var itemSetNameRegex = regexp.MustCompile(`<a href="/cata/item-set=-?([0-9]+)/(.*)" class="q">([^<]+)<`)
 
 func (item WowheadItemResponse) GetItemSetName() string {
 	original := item.GetTooltipRegexString(itemSetNameRegex, 3)
