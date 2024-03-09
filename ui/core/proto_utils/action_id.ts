@@ -141,7 +141,7 @@ export class ActionId {
 		if (USE_WOTLK_DB) {
 			return 'https://wotlkdb.com/?item=' + id;
 		} else {
-			return `https://wowhead.com/wotlk/${langPrefix}item=${id}?lvl=${CHARACTER_LEVEL}`;
+			return `https://wowhead.com/cata/${langPrefix}item=${id}?lvl=${CHARACTER_LEVEL}`;
 		}
 	}
 	static makeSpellUrl(id: number): string {
@@ -149,7 +149,7 @@ export class ActionId {
 		if (USE_WOTLK_DB) {
 			return 'https://wotlkdb.com/?spell=' + id;
 		} else {
-			return `https://wowhead.com/wotlk/${langPrefix}spell=${id}`;
+			return `https://wowhead.com/cata/${langPrefix}spell=${id}`;
 		}
 	}
 	static makeQuestUrl(id: number): string {
@@ -157,7 +157,7 @@ export class ActionId {
 		if (USE_WOTLK_DB) {
 			return 'https://wotlkdb.com/?quest=' + id;
 		} else {
-			return `https://wowhead.com/wotlk/${langPrefix}quest=${id}`;
+			return `https://wowhead.com/cata/${langPrefix}quest=${id}`;
 		}
 	}
 	static makeNpcUrl(id: number): string {
@@ -165,7 +165,7 @@ export class ActionId {
 		if (USE_WOTLK_DB) {
 			return 'https://wotlkdb.com/?npc=' + id;
 		} else {
-			return `https://wowhead.com/wotlk/${langPrefix}npc=${id}`;
+			return `https://wowhead.com/cata/${langPrefix}npc=${id}`;
 		}
 	}
 	static makeZoneUrl(id: number): string {
@@ -173,7 +173,7 @@ export class ActionId {
 		if (USE_WOTLK_DB) {
 			return 'https://wotlkdb.com/?zone=' + id;
 		} else {
-			return `https://wowhead.com/wotlk/${langPrefix}zone=${id}`;
+			return `https://wowhead.com/cata/${langPrefix}zone=${id}`;
 		}
 	}
 
@@ -636,7 +636,7 @@ const petNameToActionId: Record<string, ActionId> = {
 	'Valkyr': ActionId.fromSpellId(71844),
 };
 
-// https://wowhead.com/wotlk/hunter-pets
+// https://wowhead.com/cata/hunter-pets
 const petNameToIcon: Record<string, string> = {
 	'Bat': 'https://wow.zamimg.com/images/wow/icons/medium/ability_hunter_pet_bat.jpg',
 	'Bear': 'https://wow.zamimg.com/images/wow/icons/medium/ability_hunter_pet_bear.jpg',
@@ -679,7 +679,7 @@ const petNameToIcon: Record<string, string> = {
 	'Worm': 'https://wow.zamimg.com/images/wow/icons/medium/ability_hunter_pet_worm.jpg',
 };
 
-export function getPetIconFromName(name: string): string|ActionId|undefined {
+export function getPetIconFromName(name: string): string | ActionId | undefined {
 	return petNameToActionId[name] || petNameToIcon[name];
 }
 
